@@ -1,0 +1,33 @@
+# cronwatch.example.yaml — example configuration for cronwatch
+# Copy to /etc/cronwatch/config.yaml and adjust as needed.
+
+# Logging verbosity: debug | info | warn | error
+log_level: info
+
+# Directory where cronwatch stores job state (last-run timestamps, etc.)
+state_dir: /var/lib/cronwatch
+
+# Alerting destinations (both are optional)
+alerts:
+  # Send alert emails to this address (requires an SMTP relay on localhost)
+  email: ops@example.com
+  # POST a JSON payload to this URL on failure or missed run
+  webhook: https://hooks.example.com/cronwatch
+
+jobs:
+  # Daily database backup expected to finish within 1 hour
+  - name: db-backup
+    schedule: "0 2 * * *"   # every day at 02:00
+    timeout: 1h
+    command: /usr/local/bin/db-backup.sh
+
+  # Hourly cache warm-up; must complete in 5 minutes
+  - name: cache-warmup
+    schedule: "15 * * * *"  # 15 minutes past every hour
+    timeout: 5m
+    command: /usr/local/bin/warm-cache.sh
+
+  # Weekly report generation — no strict timeout
+  - name: weekly-report
+    schedule: "0 6 * * 1"   # every Monday at 06:00
+    command: /usr/local/bin/generate-report.sh
