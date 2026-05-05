@@ -65,16 +65,25 @@ func (r *Reporter) Print(statuses []JobStatus) {
 	tw := tabwriter.NewWriter(r.writer, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "JOB\tLAST RUN\tNEXT RUN\tSTATUS")
 	for _, s := range statuses {
-		lastRun := "never"
-		if s.LastRun != nil {
-			lastRun = s.LastRun.Format(time.RFC3339)
-		}
-		status := "OK"
-		if s.Missed {
-			status = "MISSED"
-		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-			s.Name, lastRun, s.NextRun.Format(time.RFC3339), status)
+			s.Name, formatLastRun(s.LastRun), s.NextRun.Format(time.RFC3339), formatStatus(s.Missed))
 	}
 	tw.Flush()
+}
+
+// formatLastRun returns a formatted string for the last run time,
+// or "never" if no run has been recorded.
+func formatLastRun(t *time.Time) string {
+	if t == nil {
+		return "never"
+	}
+	return t.Format(time.RFC3339)
+}
+
+// formatStatus returns a human-readable status string based on whether the job was missed.
+func formatStatus(missed bool) string {
+	if missed {
+		return "MISSED"
+	}
+	return "OK"
 }
