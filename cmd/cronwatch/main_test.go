@@ -37,6 +37,23 @@ func TestMain_MissingConfig(t *testing.T) {
 	}
 }
 
+// TestMain_InvalidConfig verifies the binary exits with an error when the
+// config file contains invalid YAML.
+func TestMain_InvalidConfig(t *testing.T) {
+	if os.Getenv("CRONWATCH_INTEGRATION") == "" {
+		t.Skip("set CRONWATCH_INTEGRATION=1 to run binary integration tests")
+	}
+
+	bin := buildBinary(t)
+	cfgPath := writeInvalidConfig(t)
+
+	cmd := exec.Command(bin, "--config", cfgPath, "--report")
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected non-zero exit for invalid config YAML, got nil")
+	}
+}
+
 func buildBinary(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -62,6 +79,18 @@ jobs:
 `
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
+	}
+	return path
+}
+
+func writeInvalidConfig(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cronwatch.yaml")
+	content := `this: is: not: valid: yaml: [
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write invalid config: %v", err)
 	}
 	return path
 }
