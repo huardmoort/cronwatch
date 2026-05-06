@@ -18,29 +18,33 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	configPath := flag.String("config", "cronwatch.yaml", "path to config file")
 	reportOnly := flag.Bool("report", false, "print status report and exit")
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading config: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("loading config: %w", err)
 	}
 
 	st, err := store.New(cfg.StorePath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error opening store: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("opening store: %w", err)
 	}
 
 	if *reportOnly {
 		r := reporter.New(cfg, st)
 		if err := r.Print(os.Stdout); err != nil {
-			fmt.Fprintf(os.Stderr, "error printing report: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("printing report: %w", err)
 		}
-		return
+		return nil
 	}
 
 	notifier := notify.New(cfg.Webhook)
@@ -61,4 +65,5 @@ func main() {
 
 	watcher.RunLoop(ctx, w, cfg.Interval)
 	log.Println("cronwatch stopped")
+	return nil
 }
