@@ -62,6 +62,19 @@ func (l *Log) Entries() []Entry {
 	return out
 }
 
+// EntriesForJob returns a copy of all recorded alert entries for the given job name.
+func (l *Log) EntriesForJob(job string) []Entry {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var out []Entry
+	for _, e := range l.entries {
+		if e.Job == job {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 // save writes the current entries slice to disk. Caller must hold l.mu.
 func (l *Log) save() error {
 	data, err := json.MarshalIndent(l.entries, "", "  ")
