@@ -1,73 +1,70 @@
-// Package api provides a lightweight HTTP server exposing cronwatch status
-// endpoints, including job health, metrics snapshots, and manual heartbeat
-// injection for testing purposes.
+// Package api provides the HTTP API for cronwatch status and health endpoints.
 package api
 
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
-	"github.com/example/cronwatch/internal/metrics"
-	"github.com/example/cronwatch/internal/reporter"
+	"github.com/cronwatch/internal/alertlog"
+	"github.com/cronwatch/internal/metrics"
 )
 
 // Server holds dependencies for the HTTP API.
 type Server struct {
 	mux      *http.ServeMux
-	reporter *reporter.Reporter
 	metrics  *metrics.Collector
+	alertLog *alertlog.Log
 }
 
-// New creates a new API Server and registers its routes.
-func New(r *reporter.Reporter, m *metrics.Collector) *Server {
+// New creates a new API Server with the given metrics collector and alert log.
+func New(mc *metrics.Collector, al *alertlog.Log) *Server {
 	s := &Server{
 		mux:      http.NewServeMux(),
-		reporter: r,
-		metrics:  m,
+		metrics:  mc,
+		alertLog: al,
 	}
-	s.mux.HandleFunc("/healthz", s.handleHealthz)
-	s.mux.HandleFunc("/status", s.handleStatus)
-	s.mux.HandleFunc("/metrics", s.handleMetrics)
+	s.routes()
 	return s
 }
 
-// ServeHTTP implements http.Handler so Server can be used directly.
+func (s *Server) routes() {
+	s.mux.HandleFunc("/healthz", s.handleHealthz())
+	s.mux.HandleFunc("/status", s.handleStatus())
+	s.mux.HandleFunc("/metrics", s.handleMetrics())
+	if s.alertLog != nil {
+		s.mux.HandleFunc("/alerts", s.alertLog.Handler())
+	}
+}
+
+// ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-// handleHealthz returns a simple liveness response.
-func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "ok",
-		"time":   time.Now().UTC().Format(time.RFC3339),
-	})
+func (s *Server) handleHealthz() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	}
 }
 
-// handleStatus returns the collected job statuses as JSON.
-func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
+func (s *Server) handleStatus() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		snap := s.metrics.Snapshot()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(snap)
 	}
-	statuses, err := s.reporter.Collect()
-	if err != nil {
-		http.Error(w, "failed to collect statuses", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(statuses)
 }
 
-// handleMetrics returns a snapshot of runtime metrics as JSON.
-func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
+func (s *Server) handleMetrics() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		snap := s.metrics.Snapshot()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(snap)
 	}
-	snap := s.metrics.Snapshot()
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(snap)
 }
