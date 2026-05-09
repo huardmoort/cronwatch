@@ -75,6 +75,20 @@ func (l *Log) EntriesForJob(job string) []Entry {
 	return out
 }
 
+// EntriesSince returns a copy of all recorded alert entries fired at or after
+// the given time. Useful for querying recent alerts in reports or dashboards.
+func (l *Log) EntriesSince(t time.Time) []Entry {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var out []Entry
+	for _, e := range l.entries {
+		if !e.FiredAt.Before(t) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 // save writes the current entries slice to disk. Caller must hold l.mu.
 func (l *Log) save() error {
 	data, err := json.MarshalIndent(l.entries, "", "  ")
