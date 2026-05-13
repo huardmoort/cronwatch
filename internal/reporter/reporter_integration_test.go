@@ -50,3 +50,24 @@ func TestPrint_OKStatusLabel(t *testing.T) {
 		t.Error("expected OK label in output for healthy job")
 	}
 }
+
+func TestPrint_JobNameAppearsInOutput(t *testing.T) {
+	s := tempStore(t)
+	recent := time.Now().Add(-1 * time.Minute)
+	if err := s.Record("my-unique-job", recent); err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	r := reporter.New(s, &buf)
+	jobs := map[string]string{"my-unique-job": "*/5 * * * *"}
+	statuses, err := r.Collect(jobs, time.Now())
+	if err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+	r.Print(statuses)
+
+	if !strings.Contains(buf.String(), "my-unique-job") {
+		t.Error("expected job name to appear in output")
+	}
+}
