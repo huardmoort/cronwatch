@@ -19,15 +19,20 @@ jobs:
   - name: db-backup
     schedule: "0 2 * * *"   # every day at 02:00
     timeout: 1h
+    # Alert if the job has not started within 10 minutes of its scheduled time
+    deadline_grace: 10m
     command: /usr/local/bin/db-backup.sh
 
   # Hourly cache warm-up; must complete in 5 minutes
   - name: cache-warmup
     schedule: "15 * * * *"  # 15 minutes past every hour
     timeout: 5m
+    deadline_grace: 3m
     command: /usr/local/bin/warm-cache.sh
 
   # Weekly report generation — no strict timeout
   - name: weekly-report
     schedule: "0 6 * * 1"   # every Monday at 06:00
+    # No timeout set; job is allowed to run as long as needed
+    # No deadline_grace set; missed-run alerts use the global default
     command: /usr/local/bin/generate-report.sh
