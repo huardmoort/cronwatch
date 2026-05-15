@@ -56,6 +56,16 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+// JobByName returns the Job with the given name, or an error if not found.
+func (c *Config) JobByName(name string) (*Job, error) {
+	for i := range c.Jobs {
+		if c.Jobs[i].Name == name {
+			return &c.Jobs[i], nil
+		}
+	}
+	return nil, fmt.Errorf("job %q not found", name)
+}
+
 func (c *Config) validate() error {
 	if len(c.Jobs) == 0 {
 		return fmt.Errorf("no jobs defined")
